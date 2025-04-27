@@ -27,7 +27,7 @@ func GenerateNew(userID string, clientIP string) (string, string, error) {
 	return accessToken, refreshToken, nil
 }
 
-func UpdateTokens(access, refresh string) (string, string, error) {
+func Update(access, refresh string) (string, string, error) {
 	return "-1", "-2", nil
 }
 
@@ -47,7 +47,7 @@ func generateAccessToken(userID, clientIP string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"ip":      clientIP,
-		"exp":     time.Now().Add(15 * time.Minute).Unix(),
+		"exp":     time.Now().Add(30 * time.Minute).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)

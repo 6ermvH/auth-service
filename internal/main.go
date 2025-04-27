@@ -8,9 +8,9 @@ import (
 	"os"
 
 	"example.com/auth_service/handlers"
-	"example.com/auth_service/db/postgres"
+	"example.com/auth_service/repository/postgres"
 
-	_ "example.com/auth_service/db"
+	_ "example.com/auth_service/repository"
 	_ "github.com/lib/pq"
 )
 
@@ -29,12 +29,11 @@ func main() {
 	}
 	defer db.Close()
 
-	posresRepo := postgres.NewRefreshTokenRepository(db)
+	postgresRepo := postgres.NewRefreshTokenRepository(db)
+	h := &handlers.Handler{Repo: postgresRepo}
 
-	posresRepo.CheckRefreshToken("123", "e2fsqf")
-
-	http.HandleFunc("/token", handlers.HandleGenerateTokens)
-	http.HandleFunc("/refresh", handlers.HandleUpdateTokens)
+	http.HandleFunc("/token", h.HandleGenerateTokens)
+	http.HandleFunc("/refresh", h.HandleUpdateTokens)
 
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)

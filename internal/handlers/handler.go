@@ -6,9 +6,19 @@ import (
 	"net/http"
 
 	"example.com/auth_service/token"
+	"example.com/auth_service/repository"
 )
 
-func HandleGenerateTokens(w http.ResponseWriter, r *http.Request) {
+type Handler struct {
+	Repo repository.IRefreshTokenRepository
+}
+
+type IHandler interface {
+	HandleGenerateTokens(http.ResponseWriter, *http.Request)
+	HandleUpdateTokens(http.ResponseWriter, *http.Request)
+}
+
+func (h *Handler) HandleGenerateTokens(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user_id")
 	if userID == "" {
 		http.Error(w, "Missing user_id", http.StatusBadRequest)
@@ -27,6 +37,12 @@ func HandleGenerateTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err = h.Repo.InsertRefreshToken(userID, clientIP, refreshToken)
+	if err != nil {
+		http.Error(w, "Failed to insert token to DataBase", http.StatusInternalServerError)
+		return
+	}
+
 	response := map[string]string{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
@@ -36,7 +52,7 @@ func HandleGenerateTokens(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func HandleUpdateTokens(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleUpdateTokens(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		AccessToken  string `json:"access_token"`
 		RefreshToken string `json:"refresh_token"`
@@ -48,7 +64,7 @@ func HandleUpdateTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, refreshToken, err := token.UpdateTokens(req.AccessToken, req.RefreshToken)
+	accessToken, refreshToken, err := token.Update(req.AccessToken, req.RefreshToken)
 	if err != nil {
 		http.Error(w, "Failed to update tokens", http.StatusInternalServerError)
 		return

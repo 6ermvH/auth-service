@@ -5,8 +5,7 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     user_id UUID NOT NULL,
     refresh_token_hash TEXT NOT NULL,
     client_ip TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT now(),
-    expired_at TIMESTAMP,
+    expired_at TIMESTAMP DEFAULT now() + interval '7 days',
     is_used BOOLEAN DEFAULT false
 );
 
