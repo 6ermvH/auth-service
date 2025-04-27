@@ -6,4 +6,3 @@ type IRefreshTokenRepository interface {
 	MarkRefreshTokenUsed(userID, refreshToken string) error
 	CleanupBadTokens() error
 }
-

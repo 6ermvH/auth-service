@@ -5,8 +5,8 @@ import (
 	"net"
 	"net/http"
 
-	"example.com/auth_service/token"
 	"example.com/auth_service/repository"
+	"example.com/auth_service/token"
 )
 
 type Handler struct {
