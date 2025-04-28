@@ -20,12 +20,12 @@ func GenerateNew(userID, clientIP string) (string, string, error) {
 	return accessToken, refreshToken, nil
 }
 
-func ParseAccessToken(acess_token, key string) (string, error) {
-	_, err := isOkAcessToken(acess_token)
+func ParseAccessToken(access_token, key string) (string, error) {
+	_, err := isOkAccessToken(access_token)
 	if err != nil {
 		return "", err
 	}
-	token, _ := jwt.Parse(acess_token, func(t *jwt.Token) (interface{}, error) {
+	token, _ := jwt.Parse(access_token, func(t *jwt.Token) (interface{}, error) {
 		return jwtSecretKey, nil
 	})
 	claims, _ := token.Claims.(jwt.MapClaims)
@@ -37,8 +37,8 @@ func ParseAccessToken(acess_token, key string) (string, error) {
 	return value, nil
 }
 
-func isOkAcessToken(acess_token string) (bool, error) {
-	token, err := jwt.Parse(acess_token, func(t *jwt.Token) (interface{}, error) {
+func isOkAccessToken(access_token string) (bool, error) {
+	token, err := jwt.Parse(access_token, func(t *jwt.Token) (interface{}, error) {
 		if t.Method != jwt.SigningMethodHS512 {
 			return nil, fmt.Errorf("Bad signing method %v", t.Header["alg"])
 		}
