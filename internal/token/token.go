@@ -25,20 +25,20 @@ func ParseAccessToken(acess_token, key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	token, _ := jwt.Parse(acess_token, func (t *jwt.Token) (interface{}, error) {
+	token, _ := jwt.Parse(acess_token, func(t *jwt.Token) (interface{}, error) {
 		return jwtSecretKey, nil
 	})
-	claims, _ := token.Claims.(jwt.MapClaims)	
+	claims, _ := token.Claims.(jwt.MapClaims)
 
 	value, ok := claims[key].(string)
 	if !ok {
-		return "", fmt.Errorf("'%v' key is missing in claims")
+		return "", fmt.Errorf("'%v' key is missing in claims", key)
 	}
 	return value, nil
 }
 
 func isOkAcessToken(acess_token string) (bool, error) {
-	token, err := jwt.Parse(acess_token, func (t *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(acess_token, func(t *jwt.Token) (interface{}, error) {
 		if t.Method != jwt.SigningMethodHS512 {
 			return nil, fmt.Errorf("Bad signing method %v", t.Header["alg"])
 		}
