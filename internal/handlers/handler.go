@@ -13,11 +13,20 @@ import (
 
 type Handler struct {
 	Repo repository.IRefreshTokenRepository
+	TokenM token.ITokenManager
 }
 
 type IHandler interface {
 	HandleGenerateTokens(http.ResponseWriter, *http.Request)
 	HandleUpdateTokens(http.ResponseWriter, *http.Request)
+}
+
+func NewHandler (repo repository.IRefreshTokenRepository, secretKey string) *Handler {
+	if len(secretKey) == 0 {
+		log.Fatalf("Can`t find JWT_SECRET_KEY")
+		return nil
+	}
+	return &Handler{Repo: repo, TokenM: token.NewTokenManager([]byte(secretKey))}
 }
 
 func (h *Handler) HandleGenerateTokens(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +49,7 @@ func (h *Handler) HandleGenerateTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, refreshToken, err := token.GenerateNew(userID, clientIP)
+	accessToken, refreshToken, err := h.TokenM.GenerateNew(userID, clientIP)
 	if err != nil {
 		http.Error(w, "Failed to generate tokens", http.StatusInternalServerError)
 		return
@@ -81,13 +90,13 @@ func (h *Handler) HandleUpdateTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parsedUserID, err := token.ParseAccess(req.AccessToken, "user_id")
+	parsedUserID, err := h.TokenM.ParseAccess(req.AccessToken, "user_id")
 	if err != nil {
 		http.Error(w, "Invalid access token", http.StatusBadRequest)
 		return
 	}
 
-	parsedClientIP, err := token.ParseAccess(req.AccessToken, "ip")
+	parsedClientIP, err := h.TokenM.ParseAccess(req.AccessToken, "ip")
 	if err != nil {
 		http.Error(w, "Invalid access token", http.StatusBadRequest)
 		return
@@ -116,7 +125,7 @@ func (h *Handler) HandleUpdateTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, refreshToken, err := token.GenerateNew(parsedUserID, clientIP)
+	accessToken, refreshToken, err := h.TokenM.GenerateNew(parsedUserID, clientIP)
 	if err != nil {
 		http.Error(w, "Failed to update tokens", http.StatusInternalServerError)
 		return

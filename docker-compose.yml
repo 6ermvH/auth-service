@@ -24,5 +24,6 @@ services:
       - DB_NAME
       - DB_HOST=db
       - DB_PORT=5432
+      - JWT_SECRET_KEY
     restart: unless-stopped
 
