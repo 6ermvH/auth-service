@@ -55,7 +55,7 @@ func (h *Handler) HandleGenerateTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.Repo.InsertRefreshToken(userID, clientIP, refreshToken)
+	err = h.Repo.Insert(userID, clientIP, refreshToken)
 	if err != nil {
 		http.Error(w, "Failed to insert token to DataBase", http.StatusInternalServerError)
 		return
@@ -105,12 +105,11 @@ func (h *Handler) HandleUpdateTokens(w http.ResponseWriter, r *http.Request) {
 	if clientIP != parsedClientIP {
 		err = mail.SendToIP(clientIP, "Warning. Someone has access to your account.")
 		if err != nil {
-			log.Panicf("Failed to send email to %s", clientIP)
+			log.Printf("Failed to send email to %s", clientIP)
 		}
-		return
 	}
 
-	ok, err := h.Repo.CheckRefreshToken(parsedUserID, req.RefreshToken)
+	ok, err := h.Repo.Check(parsedUserID, req.RefreshToken)
 	if err != nil {
 		http.Error(w, "Failed to check refresh token", http.StatusInternalServerError)
 		return
@@ -119,7 +118,7 @@ func (h *Handler) HandleUpdateTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.Repo.MarkRefreshTokenUsed(parsedUserID, req.RefreshToken)
+	err = h.Repo.MarkUsed(parsedUserID, req.RefreshToken)
 	if err != nil {
 		http.Error(w, "Failed to update refresh token", http.StatusInternalServerError)
 		return
@@ -128,6 +127,12 @@ func (h *Handler) HandleUpdateTokens(w http.ResponseWriter, r *http.Request) {
 	accessToken, refreshToken, err := h.TokenM.GenerateNew(parsedUserID, clientIP)
 	if err != nil {
 		http.Error(w, "Failed to update tokens", http.StatusInternalServerError)
+		return
+	}
+
+	err = h.Repo.Insert(parsedUserID, clientIP, refreshToken)
+	if err != nil {
+		http.Error(w, "Failed to insert token to DataBase", http.StatusInternalServerError)
 		return
 	}
 
