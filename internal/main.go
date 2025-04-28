@@ -27,6 +27,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Printf("Success connection to dbname:'%s', from %s:%s",
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+	)
 	defer db.Close()
 
 	postgresRepo := postgres.NewRefreshTokenRepository(db)
@@ -35,6 +40,7 @@ func main() {
 	http.HandleFunc("/token", h.HandleGenerateTokens)
 	http.HandleFunc("/refresh", h.HandleUpdateTokens)
 
+	log.Printf("Start listen on %s", "8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}

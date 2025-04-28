@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"log"
 
 	"example.com/auth_service/repository"
 	"example.com/auth_service/token"
@@ -19,6 +20,13 @@ type IHandler interface {
 }
 
 func (h *Handler) HandleGenerateTokens(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid http method", http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("Handle generate is active. CLIENT: %s\nWITH DATA: %s", r.RemoteAddr, r.Body)
+
 	userID := r.URL.Query().Get("user_id")
 	if userID == "" {
 		http.Error(w, "Missing user_id", http.StatusBadRequest)
@@ -53,6 +61,12 @@ func (h *Handler) HandleGenerateTokens(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandleUpdateTokens(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid http method", http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("Handle generate is active. CLIENT: %s\nWITH DATA: %s", r.RemoteAddr, r.Body)
 	var req struct {
 		AccessToken  string `json:"access_token"`
 		RefreshToken string `json:"refresh_token"`
