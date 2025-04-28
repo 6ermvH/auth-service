@@ -20,7 +20,7 @@ func GenerateNew(userID, clientIP string) (string, string, error) {
 	return accessToken, refreshToken, nil
 }
 
-func ParseAccessToken(access_token, key string) (string, error) {
+func ParseAccess(access_token, key string) (string, error) {
 	_, err := isOkAccessToken(access_token)
 	if err != nil {
 		return "", err

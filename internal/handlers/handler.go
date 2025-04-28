@@ -66,13 +66,13 @@ func (h *Handler) HandleUpdateTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parsedUserID, err := token.ParseAccessToken(req.AccessToken, "user_id")
+	parsedUserID, err := token.ParseAccess(req.AccessToken, "user_id")
 	if err != nil {
 		http.Error(w, "Invalid access token", http.StatusBadRequest)
 		return
 	}
 
-	parsedClientIP, err := token.ParseAccessToken(req.AccessToken, "ip")
+	parsedClientIP, err := token.ParseAccess(req.AccessToken, "ip")
 	if err != nil {
 		http.Error(w, "Invalid access token", http.StatusBadRequest)
 		return
