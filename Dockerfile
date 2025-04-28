@@ -3,7 +3,7 @@ FROM golang:1.22
 WORKDIR /app
 COPY internal/ .
 RUN go mod download
-RUN go build
+RUN go build -o auth-service
 EXPOSE 8080
 CMD ["./auth-service"]
 
