@@ -16,7 +16,6 @@ func NewRefreshTokenRepository(db *sql.DB) *PostgresTokenRepository {
 }
 
 func (this *PostgresTokenRepository) InsertRefreshToken(userID, clientIP, refreshToken string) error {
-	this.CleanupBadTokens()
 	_, err := this.DB.Exec(
 		`INSERT INTO refresh_tokens (user_id, refresh_token_hash, client_ip)
 		VALUES ($1, crypt($2, gen_salt('bf')), $3)`, userID, refreshToken, clientIP)
@@ -25,7 +24,6 @@ func (this *PostgresTokenRepository) InsertRefreshToken(userID, clientIP, refres
 }
 
 func (this *PostgresTokenRepository) CheckRefreshToken(userID, refreshToken string) (bool, error) {
-	this.CleanupBadTokens()
 	row := this.DB.QueryRow(
 		`SELECT id FROM refresh_tokens
 		WHERE user_id = $1
@@ -45,7 +43,6 @@ func (this *PostgresTokenRepository) CheckRefreshToken(userID, refreshToken stri
 }
 
 func (this *PostgresTokenRepository) MarkRefreshTokenUsed(userID, refreshToken string) error {
-	this.CleanupBadTokens()
 	_, err := this.DB.Exec(
 		`UPDATE refresh_tokens
 		SET is_used = true
