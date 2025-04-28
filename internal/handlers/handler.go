@@ -2,17 +2,17 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net"
 	"net/http"
-	"log"
 
-	"example.com/auth_service/repository"
 	"example.com/auth_service/mail"
+	"example.com/auth_service/repository"
 	"example.com/auth_service/token"
 )
 
 type Handler struct {
-	Repo repository.IRefreshTokenRepository
+	Repo   repository.IRefreshTokenRepository
 	TokenM token.ITokenManager
 }
 
@@ -21,7 +21,7 @@ type IHandler interface {
 	HandleUpdateTokens(http.ResponseWriter, *http.Request)
 }
 
-func NewHandler (repo repository.IRefreshTokenRepository, secretKey string) *Handler {
+func NewHandler(repo repository.IRefreshTokenRepository, secretKey string) *Handler {
 	if len(secretKey) == 0 {
 		log.Fatalf("Can`t find JWT_SECRET_KEY")
 		return nil

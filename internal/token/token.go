@@ -1,9 +1,9 @@
 package token
 
 import (
-	"fmt"
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
