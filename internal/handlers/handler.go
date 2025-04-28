@@ -55,7 +55,7 @@ func (h *Handler) HandleGenerateTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.Repo.Insert(userID, clientIP, refreshToken)
+	err = h.Repo.Insert(userID, clientIP, refreshToken, h.TokenM.HashAccessToken(accessToken))
 	if err != nil {
 		http.Error(w, "Failed to insert token to DataBase", http.StatusInternalServerError)
 		return
@@ -109,7 +109,7 @@ func (h *Handler) HandleUpdateTokens(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ok, err := h.Repo.Check(parsedUserID, req.RefreshToken)
+	ok, err := h.Repo.Check(parsedUserID, req.RefreshToken, h.TokenM.HashAccessToken(req.AccessToken))
 	if err != nil {
 		http.Error(w, "Failed to check refresh token", http.StatusInternalServerError)
 		return
@@ -130,7 +130,7 @@ func (h *Handler) HandleUpdateTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.Repo.Insert(parsedUserID, clientIP, refreshToken)
+	err = h.Repo.Insert(parsedUserID, clientIP, refreshToken, h.TokenM.HashAccessToken(accessToken))
 	if err != nil {
 		http.Error(w, "Failed to insert token to DataBase", http.StatusInternalServerError)
 		return

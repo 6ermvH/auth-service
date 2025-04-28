@@ -15,20 +15,22 @@ func NewRefreshTokenRepository(db *sql.DB) *PostgresTokenRepository {
 	return &PostgresTokenRepository{DB: db}
 }
 
-func (this *PostgresTokenRepository) Insert(userID, clientIP, refreshToken string) error {
+func (this *PostgresTokenRepository) Insert(userID, clientIP, refreshToken, accessTokenHash string) error {
 	_, err := this.DB.Exec(
-		`INSERT INTO refresh_tokens (user_id, refresh_token_hash, client_ip)
-		VALUES ($1, crypt($2, gen_salt('bf')), $3)`, userID, refreshToken, clientIP)
+		`INSERT INTO refresh_tokens (user_id, client_ip, refresh_token_hash, access_token_sha256)
+		VALUES ($1, $2, crypt($3, gen_salt('bf')), $4)`, userID, clientIP, refreshToken, accessTokenHash)
 
 	return err
 }
 
-func (this *PostgresTokenRepository) Check(userID, refreshToken string) (bool, error) {
+func (this *PostgresTokenRepository) Check(userID, refreshToken, accessTokenHash string) (bool, error) {
+	this.CleanupBadTokens()
 	row := this.DB.QueryRow(
 		`SELECT id FROM refresh_tokens
 		WHERE user_id = $1
 		AND refresh_token_hash = crypt($2, refresh_token_hash)
-		AND is_used = false`, userID, refreshToken)
+		AND access_token_sha256 = $3
+		AND is_used = false`, userID, refreshToken, accessTokenHash)
 
 	var id string
 	err := row.Scan(&id)

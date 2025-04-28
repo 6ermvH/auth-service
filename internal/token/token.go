@@ -2,7 +2,9 @@ package token
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -16,6 +18,7 @@ type TokenManager struct {
 type ITokenManager interface {
 	GenerateNew(userID, clientIP string) (string, string, error)
 	ParseAccess(accessToken, key string) (string, error)
+	HashAccessToken(accessToken string) string
 }
 
 func NewTokenManager(secretKey []byte) *TokenManager {
@@ -51,6 +54,11 @@ func (tm *TokenManager) ParseAccess(access_token, key string) (string, error) {
 		return "", fmt.Errorf("'%v' key is missing in claims", key)
 	}
 	return value, nil
+}
+
+func (tm *TokenManager) HashAccessToken(accessToken string) string {
+	hash := sha256.Sum256([]byte(accessToken))
+	return hex.EncodeToString(hash[:])
 }
 
 func (tm *TokenManager) isOkAccess(access_token string) (bool, error) {
