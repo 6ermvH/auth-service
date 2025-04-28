@@ -35,7 +35,8 @@ func main() {
 	defer db.Close()
 
 	postgresRepo := postgres.NewRefreshTokenRepository(db)
-	h := &handlers.Handler{Repo: postgresRepo}
+
+	h := handlers.NewHandler(postgresRepo, os.Getenv("JWT_SECRET_KEY"))
 
 	http.HandleFunc("/token", h.HandleGenerateTokens)
 	http.HandleFunc("/refresh", h.HandleUpdateTokens)

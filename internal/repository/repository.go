@@ -1,8 +1,8 @@
 package repository
 
 type IRefreshTokenRepository interface {
-	InsertRefreshToken(userID, refreshToken, clientIP string) error
-	CheckRefreshToken(userID, refreshToken string) (bool, error)
-	MarkRefreshTokenUsed(userID, refreshToken string) error
+	Insert(userID, refreshToken, clientIP string) error
+	Check(userID, refreshToken string) (bool, error)
+	MarkUsed(userID, refreshToken string) error
 	CleanupBadTokens() error
 }
