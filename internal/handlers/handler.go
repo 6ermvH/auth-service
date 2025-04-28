@@ -7,6 +7,7 @@ import (
 	"log"
 
 	"example.com/auth_service/repository"
+	"example.com/auth_service/mail"
 	"example.com/auth_service/token"
 )
 
@@ -93,7 +94,10 @@ func (h *Handler) HandleUpdateTokens(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if clientIP != parsedClientIP {
-		http.Error(w, "Other ip", http.StatusBadRequest)
+		err = mail.SendToIP(clientIP, "Warning. Someone has access to your account.")
+		if err != nil {
+			log.Panicf("Failed to send email to %s", clientIP)
+		}
 		return
 	}
 
