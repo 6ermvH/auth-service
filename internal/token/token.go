@@ -1,19 +1,12 @@
 package token
 
 import (
-	"crypto/rand"
-	"encoding/base64"
-	"os"
-	"time"
+	"fmt"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var (
-	jwtSecretKey = []byte(os.Getenv("JWT_SECRET_KEY"))
-)
-
-func GenerateNew(userID string, clientIP string) (string, string, error) {
+func GenerateNew(userID, clientIP string) (string, string, error) {
 	accessToken, err := generateAccessToken(userID, clientIP)
 	if err != nil {
 		return "", "", err
@@ -27,35 +20,37 @@ func GenerateNew(userID string, clientIP string) (string, string, error) {
 	return accessToken, refreshToken, nil
 }
 
-func Update(access, refresh string) (string, string, error) {
-	return "-1", "-2", nil
-}
-
-func generateRefreshToken() (string, error) {
-	bytes := make([]byte, 32)
-
-	_, err := rand.Read(bytes)
+func ParseAccessToken(acess_token, key string) (string, error) {
+	_, err := isOkAcessToken(acess_token)
 	if err != nil {
 		return "", err
 	}
+	token, _ := jwt.Parse(acess_token, func (t *jwt.Token) (interface{}, error) {
+		return jwtSecretKey, nil
+	})
+	claims, _ := token.Claims.(jwt.MapClaims)	
 
-	refreshToken := base64.StdEncoding.EncodeToString(bytes)
-	return refreshToken, nil
+	value, ok := claims[key].(string)
+	if !ok {
+		return "", fmt.Errorf("'%v' key is missing in claims")
+	}
+	return value, nil
 }
 
-func generateAccessToken(userID, clientIP string) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id": userID,
-		"ip":      clientIP,
-		"exp":     time.Now().Add(30 * time.Minute).Unix(),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
-
-	accessToken, err := token.SignedString(jwtSecretKey)
+func isOkAcessToken(acess_token string) (bool, error) {
+	token, err := jwt.Parse(acess_token, func (t *jwt.Token) (interface{}, error) {
+		if t.Method != jwt.SigningMethodHS512 {
+			return nil, fmt.Errorf("Bad signing method %v", t.Header["alg"])
+		}
+		return jwtSecretKey, nil
+	})
 	if err != nil {
-		return "", err
+		return false, err
 	}
 
-	return accessToken, nil
+	if !token.Valid {
+		return false, fmt.Errorf("invalid token signature")
+	}
+
+	return true, nil
 }

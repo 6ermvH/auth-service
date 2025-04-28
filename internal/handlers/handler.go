@@ -58,13 +58,47 @@ func (h *Handler) HandleUpdateTokens(w http.ResponseWriter, r *http.Request) {
 		RefreshToken string `json:"refresh_token"`
 	}
 
-	err := json.NewDecoder(r.Body).Decode(&req)
+	clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
+
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	accessToken, refreshToken, err := token.Update(req.AccessToken, req.RefreshToken)
+	parsedUserID, err := token.ParseAccessToken(req.AccessToken, "user_id")
+	if err != nil {
+		http.Error(w, "Invalid access token", http.StatusBadRequest)
+		return
+	}
+
+	parsedClientIP, err := token.ParseAccessToken(req.AccessToken, "ip")
+	if err != nil {
+		http.Error(w, "Invalid access token", http.StatusBadRequest)
+		return
+	}
+
+	if clientIP != parsedClientIP {
+		http.Error(w, "Other ip", http.StatusBadRequest)
+		return
+	}
+
+	ok, err := h.Repo.CheckRefreshToken(parsedUserID, req.RefreshToken)
+	if err != nil {
+		http.Error(w, "Failed to check refresh token", http.StatusInternalServerError)
+		return
+	} else if !ok {
+		http.Error(w, "Invalid refresh token", http.StatusBadRequest)
+		return
+	}
+
+	err = h.Repo.MarkRefreshTokenUsed(parsedUserID, req.RefreshToken)
+	if err != nil {
+		http.Error(w, "Failed to update refresh token", http.StatusInternalServerError)
+		return
+	}
+
+	accessToken, refreshToken, err := token.GenerateNew(parsedUserID, clientIP)
 	if err != nil {
 		http.Error(w, "Failed to update tokens", http.StatusInternalServerError)
 		return
