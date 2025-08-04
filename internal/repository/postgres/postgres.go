@@ -15,17 +15,22 @@ func NewRefreshTokenRepository(db *sql.DB) *PostgresTokenRepository {
 	return &PostgresTokenRepository{DB: db}
 }
 
-func (this *PostgresTokenRepository) Insert(userID, clientIP, refreshToken, accessTokenHash string) error {
-	_, err := this.DB.Exec(
+func (r *PostgresTokenRepository) Insert(userID, clientIP, refreshToken, accessTokenHash string) error {
+	// Insert a new refresh token into the database.
+	// The refresh token is hashed using the pgcrypto extension.
+	_, err := r.DB.Exec(
 		`INSERT INTO refresh_tokens (user_id, client_ip, refresh_token_hash, access_token_sha256)
 		VALUES ($1, $2, crypt($3, gen_salt('bf')), $4)`, userID, clientIP, refreshToken, accessTokenHash)
 
 	return err
 }
 
-func (this *PostgresTokenRepository) Check(userID, refreshToken, accessTokenHash string) (bool, error) {
-	this.CleanupBadTokens()
-	row := this.DB.QueryRow(
+func (r *PostgresTokenRepository) Check(userID, refreshToken, accessTokenHash string) (bool, error) {
+	// Cleanup expired and used tokens before checking for a valid one.
+	r.CleanupBadTokens()
+
+	// Check if a valid, unused refresh token exists for the given user.
+	row := r.DB.QueryRow(
 		`SELECT id FROM refresh_tokens
 		WHERE user_id = $1
 		AND refresh_token_hash = crypt($2, refresh_token_hash)
@@ -41,11 +46,12 @@ func (this *PostgresTokenRepository) Check(userID, refreshToken, accessTokenHash
 		return false, err
 	}
 
-	return err == nil, err
+	return true, nil
 }
 
-func (this *PostgresTokenRepository) MarkUsed(userID, refreshToken string) error {
-	_, err := this.DB.Exec(
+func (r *PostgresTokenRepository) MarkUsed(userID, refreshToken string) error {
+	// Mark a refresh token as used.
+	_, err := r.DB.Exec(
 		`UPDATE refresh_tokens
 		SET is_used = true
 		WHERE user_id = $1
@@ -54,8 +60,9 @@ func (this *PostgresTokenRepository) MarkUsed(userID, refreshToken string) error
 	return err
 }
 
-func (this *PostgresTokenRepository) CleanupBadTokens() error {
-	_, err := this.DB.Exec(
+func (r *PostgresTokenRepository) CleanupBadTokens() error {
+	// Delete all tokens that are marked as used or have expired.
+	_, err := r.DB.Exec(
 		`DELETE FROM refresh_tokens
 		WHERE is_used = true
 		OR expired_at <= NOW()`)

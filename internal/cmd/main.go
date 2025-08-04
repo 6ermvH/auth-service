@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 
+	"example.com/auth_service/config"
 	"example.com/auth_service/handlers"
 	"example.com/auth_service/repository/postgres"
 
@@ -15,28 +15,30 @@ import (
 )
 
 func main() {
+	cfg := config.LoadConfig()
+
 	connStr := fmt.Sprintf(
 		"user=%s password=%s dbname=%s host=%s port=%s sslmode=disable",
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_NAME"),
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"),
+		cfg.DBUser,
+		cfg.DBPassword,
+		cfg.DBName,
+		cfg.DBHost,
+		cfg.DBPort,
 	)
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Printf("Success connection to dbname:'%s', from %s:%s",
-		os.Getenv("DB_NAME"),
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"),
+		cfg.DBName,
+		cfg.DBHost,
+		cfg.DBPort,
 	)
 	defer db.Close()
 
 	postgresRepo := postgres.NewRefreshTokenRepository(db)
 
-	h := handlers.NewHandler(postgresRepo, os.Getenv("JWT_SECRET_KEY"))
+	h := handlers.NewHandler(postgresRepo, cfg.JWTSecretKey)
 
 	http.HandleFunc("/token", h.HandleGenerateTokens)
 	http.HandleFunc("/refresh", h.HandleUpdateTokens)

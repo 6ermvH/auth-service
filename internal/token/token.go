@@ -5,10 +5,20 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+)
+
+var (
+	ErrInvalidToken = errors.New("invalid token")
+)
+
+const (
+	accessTokenTTL  = 30 * time.Minute
+	refreshTokenTTL = 7 * 24 * time.Hour
 )
 
 type TokenManager struct {
@@ -39,15 +49,26 @@ func (tm *TokenManager) GenerateNew(userID, clientIP string) (string, string, er
 	return accessToken, refreshToken, nil
 }
 
-func (tm *TokenManager) ParseAccess(access_token, key string) (string, error) {
-	_, err := tm.isOkAccess(access_token)
+func (tm *TokenManager) ParseAccess(accessToken, key string) (string, error) {
+	token, err := jwt.Parse(accessToken, func(t *jwt.Token) (interface{}, error) {
+		if t.Method != jwt.SigningMethodHS512 {
+			return nil, fmt.Errorf("bad signing method %v", t.Header["alg"])
+		}
+		return tm.jwtSecretKey, nil
+	})
+
 	if err != nil {
 		return "", err
 	}
-	token, _ := jwt.Parse(access_token, func(t *jwt.Token) (interface{}, error) {
-		return tm.jwtSecretKey, nil
-	})
-	claims, _ := token.Claims.(jwt.MapClaims)
+
+	if !token.Valid {
+		return "", ErrInvalidToken
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", ErrInvalidToken
+	}
 
 	value, ok := claims[key].(string)
 	if !ok {
@@ -59,24 +80,6 @@ func (tm *TokenManager) ParseAccess(access_token, key string) (string, error) {
 func (tm *TokenManager) HashAccessToken(accessToken string) string {
 	hash := sha256.Sum256([]byte(accessToken))
 	return hex.EncodeToString(hash[:])
-}
-
-func (tm *TokenManager) isOkAccess(access_token string) (bool, error) {
-	token, err := jwt.Parse(access_token, func(t *jwt.Token) (interface{}, error) {
-		if t.Method != jwt.SigningMethodHS512 {
-			return nil, fmt.Errorf("Bad signing method %v", t.Header["alg"])
-		}
-		return tm.jwtSecretKey, nil
-	})
-	if err != nil {
-		return false, err
-	}
-
-	if !token.Valid {
-		return false, fmt.Errorf("invalid token signature")
-	}
-
-	return true, nil
 }
 
 func (tm *TokenManager) generateRefreshToken() (string, error) {
@@ -95,7 +98,7 @@ func (tm *TokenManager) generateAccessToken(userID, clientIP string) (string, er
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"ip":      clientIP,
-		"exp":     time.Now().Add(30 * time.Minute).Unix(),
+		"exp":     time.Now().Add(accessTokenTTL).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)

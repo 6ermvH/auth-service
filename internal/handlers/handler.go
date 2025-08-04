@@ -23,7 +23,7 @@ type IHandler interface {
 
 func NewHandler(repo repository.IRefreshTokenRepository, secretKey string) *Handler {
 	if len(secretKey) == 0 {
-		log.Fatalf("Can`t find JWT_SECRET_KEY")
+		log.Fatalf("Can't find JWT_SECRET_KEY")
 		return nil
 	}
 	return &Handler{Repo: repo, TokenM: token.NewTokenManager([]byte(secretKey))}
@@ -31,116 +31,124 @@ func NewHandler(repo repository.IRefreshTokenRepository, secretKey string) *Hand
 
 func (h *Handler) HandleGenerateTokens(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid http method", http.StatusBadRequest)
+		respondWithError(w, http.StatusBadRequest, "Invalid http method")
 		return
 	}
 
-	log.Printf("Handle generate is active. CLIENT: %s\nWITH DATA: %s", r.RemoteAddr, r.Body)
+	log.Printf("Handle generate is active. CLIENT: %s", r.RemoteAddr)
 
 	userID := r.URL.Query().Get("user_id")
 	if userID == "" {
-		http.Error(w, "Missing user_id", http.StatusBadRequest)
+		respondWithError(w, http.StatusBadRequest, "Missing user_id")
 		return
 	}
 
 	clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		http.Error(w, "Invalid client IP address", http.StatusBadRequest)
+		respondWithError(w, http.StatusBadRequest, "Invalid client IP address")
 		return
 	}
 
 	accessToken, refreshToken, err := h.TokenM.GenerateNew(userID, clientIP)
 	if err != nil {
-		http.Error(w, "Failed to generate tokens", http.StatusInternalServerError)
+		respondWithError(w, http.StatusInternalServerError, "Failed to generate tokens")
 		return
 	}
 
 	err = h.Repo.Insert(userID, clientIP, refreshToken, h.TokenM.HashAccessToken(accessToken))
 	if err != nil {
-		http.Error(w, "Failed to insert token to DataBase", http.StatusInternalServerError)
+		respondWithError(w, http.StatusInternalServerError, "Failed to insert token to DataBase")
 		return
 	}
 
-	response := map[string]string{
+	respondWithJSON(w, http.StatusOK, map[string]string{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	})
 }
 
 func (h *Handler) HandleUpdateTokens(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid http method", http.StatusBadRequest)
+		respondWithError(w, http.StatusBadRequest, "Invalid http method")
 		return
 	}
 
-	log.Printf("Handle generate is active. CLIENT: %s\nWITH DATA: %s", r.RemoteAddr, r.Body)
+	log.Printf("Handle update is active. CLIENT: %s", r.RemoteAddr)
+
 	var req struct {
 		AccessToken  string `json:"access_token"`
 		RefreshToken string `json:"refresh_token"`
 	}
 
-	clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
 
-	err = json.NewDecoder(r.Body).Decode(&req)
+	clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		respondWithError(w, http.StatusBadRequest, "Invalid client IP address")
 		return
 	}
 
 	parsedUserID, err := h.TokenM.ParseAccess(req.AccessToken, "user_id")
 	if err != nil {
-		http.Error(w, "Invalid access token", http.StatusBadRequest)
+		respondWithError(w, http.StatusBadRequest, "Invalid access token")
 		return
 	}
 
 	parsedClientIP, err := h.TokenM.ParseAccess(req.AccessToken, "ip")
 	if err != nil {
-		http.Error(w, "Invalid access token", http.StatusBadRequest)
+		respondWithError(w, http.StatusBadRequest, "Invalid access token")
 		return
 	}
 
 	if clientIP != parsedClientIP {
-		err = mail.SendToIP(clientIP, "Warning. Someone has access to your account.")
-		if err != nil {
+		if err := mail.SendToIP(clientIP, "Warning. Someone has access to your account."); err != nil {
 			log.Printf("Failed to send email to %s", clientIP)
 		}
 	}
 
 	ok, err := h.Repo.Check(parsedUserID, req.RefreshToken, h.TokenM.HashAccessToken(req.AccessToken))
 	if err != nil {
-		http.Error(w, "Failed to check refresh token", http.StatusInternalServerError)
+		respondWithError(w, http.StatusInternalServerError, "Failed to check refresh token")
 		return
-	} else if !ok {
-		http.Error(w, "Invalid refresh token", http.StatusBadRequest)
+	}
+	if !ok {
+		respondWithError(w, http.StatusBadRequest, "Invalid refresh token")
 		return
 	}
 
-	err = h.Repo.MarkUsed(parsedUserID, req.RefreshToken)
-	if err != nil {
-		http.Error(w, "Failed to update refresh token", http.StatusInternalServerError)
+	if err := h.Repo.MarkUsed(parsedUserID, req.RefreshToken); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to update refresh token")
 		return
 	}
 
 	accessToken, refreshToken, err := h.TokenM.GenerateNew(parsedUserID, clientIP)
 	if err != nil {
-		http.Error(w, "Failed to update tokens", http.StatusInternalServerError)
+		respondWithError(w, http.StatusInternalServerError, "Failed to update tokens")
 		return
 	}
 
-	err = h.Repo.Insert(parsedUserID, clientIP, refreshToken, h.TokenM.HashAccessToken(accessToken))
-	if err != nil {
-		http.Error(w, "Failed to insert token to DataBase", http.StatusInternalServerError)
+	if err := h.Repo.Insert(parsedUserID, clientIP, refreshToken, h.TokenM.HashAccessToken(accessToken)); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to insert token to DataBase")
 		return
 	}
 
-	response := map[string]string{
+	respondWithJSON(w, http.StatusOK, map[string]string{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
-	}
+	})
+}
+
+func respondWithError(w http.ResponseWriter, code int, message string) {
+	respondWithJSON(w, code, map[string]string{"error": message})
+}
+
+func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	response, _ := json.Marshal(payload)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	w.WriteHeader(code)
+	w.Write(response)
 }
